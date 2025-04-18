@@ -19,6 +19,8 @@ Run CLI to let CUA use a local browser window, using [playwright](https://playwr
 
 ```shell
 python cli.py --computer local-playwright
+
+python cli.py --computer local-playwright --start-url https://maildrop.cc --brain-file ./memory/brain.txt
 ```
 
 > [!NOTE]  

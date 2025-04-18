@@ -98,7 +98,7 @@ def main():
             if args.brain_file:
                 memory = agent.fetch_memory()
                 if memory.strip():
-                    context = [{"role": "system", "content": f"Your memory (things you have learned and remembered in past runs):\n{memory}"}] + items
+                    context = [{"role": "system", "content": f"Your memory (things you've previously learned and saved):\n{memory}\n\nMake sure to keep your memory up to date!"}] + items
                 else:
                     context = items
             else:

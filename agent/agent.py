@@ -52,7 +52,7 @@ class Agent:
                 {
                     "type": "function",
                     "name": "fetch_memory",
-                    "description": "Fetch the agent's memory from the brain file",
+                    "description": "Fetch your memory from the brain file",
                     "parameters": {
                         "type": "object",
                         "properties": {},
@@ -63,7 +63,7 @@ class Agent:
                 {
                     "type": "function",
                     "name": "write_memory",
-                    "description": "Append content to the agent's memory file (use this when necessary to remember important information and context for next time.)",
+                    "description": "Append content to your memory file (Use this to remember important information and context. For example when you create accounts, to save credentials, or to save other information that you should remember.)",
                     "parameters": {
                         "type": "object",
                         "properties": {
@@ -178,7 +178,7 @@ class Agent:
             return ""
         try:
             with open(self.brain_file, "a", encoding="utf-8") as f:
-                f.write(content)
+                f.write(f"\n{content}")
         except Exception:
             pass
         return content
