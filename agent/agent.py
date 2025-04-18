@@ -1,4 +1,6 @@
 from computers import Computer
+from memory_providers import MemoryProvider
+
 from utils import (
     create_response,
     show_image,
@@ -8,7 +10,6 @@ from utils import (
 )
 import json
 from typing import Callable
-
 
 class Agent:
     """
@@ -23,7 +24,7 @@ class Agent:
         computer: Computer = None,
         tools: list[dict] = [],
         acknowledge_safety_check_callback: Callable = lambda: False,
-        brain_file: str = None,
+        memory_providers: list[MemoryProvider] = None,
     ):
         self.model = model
         self.computer = computer
@@ -32,7 +33,7 @@ class Agent:
         self.debug = False
         self.show_images = False
         self.acknowledge_safety_check_callback = acknowledge_safety_check_callback
-
+        # add computer-preview tool if computer is provided
         if computer:
             self.tools += [
                 {
@@ -42,44 +43,10 @@ class Agent:
                     "environment": computer.environment,
                 },
             ]
-
-        # initialize memory (brain) if provided
-        self.brain_file = brain_file
-        if self.brain_file:
-            # ensure memory file exists
-            open(self.brain_file, "a", encoding="utf-8").close()
-            memory_tools = [
-                {
-                    "type": "function",
-                    "name": "fetch_memory",
-                    "description": "Fetch your memory from the brain file",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {},
-                        "required": [],
-                        "additionalProperties": False,
-                    },
-                },
-                {
-                    "type": "function",
-                    "name": "write_memory",
-                    "description": "Append content to your memory file (Use this to remember important information and context. For example when you create accounts, to save credentials, or to save other information that you should remember.)",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "content": {
-                                "type": "string",
-                                "description": "Content to append to memory",
-                            }
-                        },
-                        "required": ["content"],
-                        "additionalProperties": False,
-                    },
-                },
-            ]
-            self.tools += memory_tools
-        else:
-            self.brain_file = None
+        # initialize memory providers and their tools
+        self.memory_providers = memory_providers or []
+        for provider in self.memory_providers:
+            self.tools += provider.get_tools()
 
     def debug_print(self, *args):
         if self.debug:
@@ -95,24 +62,22 @@ class Agent:
             name, args = item["name"], json.loads(item["arguments"])
             if self.print_steps:
                 print(f"{name}({args})")
-
-            # handle memory functions
-            if name == "fetch_memory":
-                result = self.fetch_memory()
-            elif name == "write_memory":
-                # result = self.write_memory(**args)
-                # TODO: Somehow it always passes an "id" argument, so as quick
-                # workaround, we explicitly pass the content argument.
-                result = self.write_memory(content=args["content"])
-            # if function exists on computer, call it
-            elif hasattr(self.computer, name):
-                method = getattr(self.computer, name)
-                method(**args)
-                result = "success"
-            else:
-                # unknown function
-                result = None
-
+            # route to memory providers first
+            handled = False
+            for provider in self.memory_providers:
+                tool_names = [tool.get("name") for tool in provider.get_tools()]
+                if name in tool_names:
+                    result = provider.handle_call(name, args)
+                    handled = True
+                    break
+            # route to computer if not handled by memory
+            if not handled:
+                if hasattr(self.computer, name):
+                    method = getattr(self.computer, name)
+                    method(**args)
+                    result = "success"
+                else:
+                    result = None
             return [
                 {
                     "type": "function_call_output",
@@ -162,29 +127,6 @@ class Agent:
 
             return [call_output]
         return []
-    
-    def fetch_memory(self) -> str:
-        """Read and return all memory from the brain file."""
-        if not self.brain_file:
-            return ""
-        try:
-            with open(self.brain_file, "r", encoding="utf-8") as f:
-                return f.read()
-        except FileNotFoundError:
-            return ""
-        except Exception:
-            return ""
-
-    def write_memory(self, content: str) -> str:
-        """Append content to the brain file memory."""
-        if not self.brain_file:
-            return ""
-        try:
-            with open(self.brain_file, "a", encoding="utf-8") as f:
-                f.write(f"\n{content}")
-        except Exception:
-            pass
-        return content
 
     def run_full_turn(
         self, input_items, print_steps=True, debug=False, show_images=False
@@ -192,15 +134,25 @@ class Agent:
         self.print_steps = print_steps
         self.debug = debug
         self.show_images = show_images
+        # prepare base context with memory injected as system message
+        base_items: list[dict] = []
+        for provider in self.memory_providers:
+            try:
+                memory = provider.handle_call("fetch_memory", {})
+                if isinstance(memory, str) and memory.strip():
+                    base_items.append({"role": "system", "content": f"Memory:\n{memory}"})
+            except Exception:
+                continue
+        base_items += input_items
         new_items = []
-
         # keep looping until we get a final response
         while new_items[-1].get("role") != "assistant" if new_items else True:
-            self.debug_print([sanitize_message(msg) for msg in input_items + new_items])
-
+            # combine memory+history with new items
+            context = base_items + new_items
+            self.debug_print([sanitize_message(msg) for msg in context])
             response = create_response(
                 model=self.model,
-                input=input_items + new_items,
+                input=context,
                 tools=self.tools,
                 truncation="auto",
             )

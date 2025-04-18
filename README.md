@@ -20,7 +20,7 @@ Run CLI to let CUA use a local browser window, using [playwright](https://playwr
 ```shell
 python cli.py --computer local-playwright
 
-python cli.py --computer local-playwright --start-url https://maildrop.cc --brain-file ./memory/brain.txt
+python cli.py --computer local-playwright --start-url https://duckduckgo.com --memory-file ./memory-files/memory.txt
 ```
 
 > [!NOTE]  
@@ -57,7 +57,7 @@ The CLI (`cli.py`) is the easiest way to get started with CUA. It accepts the fo
 - `--debug`: Enable debug mode.
 - `--show`: Show images (screenshots) during the execution.
 - `--start-url`: Start the browsing session with a specific URL (only for browser environments). By default, the CLI will start the browsing session with `https://bing.com`.
-- `--brain-file`: Path to the brain/memory file for the agent. If provided, the agent will use this file to persist and retrieve memory across the session.
+- `--memory-file`: Path to the memory file for the file memory provider. If provided, the agent will use this file to persist and retrieve memory across the session.
 
 ### Run examples (optional)
 

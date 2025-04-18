@@ -1,5 +1,6 @@
 import argparse
 from agent.agent import Agent
+from memory_providers import FileMemoryProvider
 from computers import (
     BrowserbaseBrowser,
     ScrapybaraBrowser,
@@ -54,9 +55,9 @@ def main():
         default="https://bing.com",
     )
     parser.add_argument(
-        "--brain-file",
+        "--memory-file",
         type=str,
-        help="Path to the brain/memory file for the agent.",
+        help="Path to the memory file for the file memory provider.",
         default=None,
     )
     args = parser.parse_args()
@@ -70,12 +71,16 @@ def main():
     }
 
     ComputerClass = computer_mapping[args.computer]
+    # initialize memory providers
+    memory_providers = []
+    if args.memory_file:
+        memory_providers.append(FileMemoryProvider(args.memory_file))
 
     with ComputerClass() as computer:
         agent = Agent(
             computer=computer,
             acknowledge_safety_check_callback=acknowledge_safety_check_callback,
-            brain_file=args.brain_file,
+            memory_providers=memory_providers,
         )
         items = []
 
@@ -84,7 +89,6 @@ def main():
             if not args.start_url.startswith("http"):
                 args.start_url = "https://" + args.start_url
             agent.computer.goto(args.start_url)
-
         while True:
             try:
                 user_input = args.input or input("> ")
@@ -94,17 +98,9 @@ def main():
                 print(f"An error occurred: {e}")
                 break
             items.append({"role": "user", "content": user_input})
-            # build context with memory if provided
-            if args.brain_file:
-                memory = agent.fetch_memory()
-                if memory.strip():
-                    context = [{"role": "system", "content": f"Your memory (things you've previously learned and saved):\n{memory}\n\nMake sure to keep your memory up to date!"}] + items
-                else:
-                    context = items
-            else:
-                context = items
+            # run with full history; Agent will inject memory providers automatically
             output_items = agent.run_full_turn(
-                context,
+                items,
                 print_steps=True,
                 show_images=args.show,
                 debug=args.debug,
