@@ -100,7 +100,10 @@ class Agent:
             if name == "fetch_memory":
                 result = self.fetch_memory()
             elif name == "write_memory":
-                result = self.write_memory(**args)
+                # result = self.write_memory(**args)
+                # TODO: Somehow it always passes an "id" argument, so as quick
+                # workaround, we explicitly pass the content argument.
+                result = self.write_memory(content=args["content"])
             # if function exists on computer, call it
             elif hasattr(self.computer, name):
                 method = getattr(self.computer, name)
