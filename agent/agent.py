@@ -23,6 +23,7 @@ class Agent:
         computer: Computer = None,
         tools: list[dict] = [],
         acknowledge_safety_check_callback: Callable = lambda: False,
+        brain_file: str = None,
     ):
         self.model = model
         self.computer = computer
@@ -42,6 +43,44 @@ class Agent:
                 },
             ]
 
+        # initialize memory (brain) if provided
+        self.brain_file = brain_file
+        if self.brain_file:
+            # ensure memory file exists
+            open(self.brain_file, "a", encoding="utf-8").close()
+            memory_tools = [
+                {
+                    "type": "function",
+                    "name": "fetch_memory",
+                    "description": "Fetch the agent's memory from the brain file",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {},
+                        "required": [],
+                        "additionalProperties": False,
+                    },
+                },
+                {
+                    "type": "function",
+                    "name": "write_memory",
+                    "description": "Append content to the agent's memory file (use this when necessary to remember important information and context for next time.)",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "content": {
+                                "type": "string",
+                                "description": "Content to append to memory",
+                            }
+                        },
+                        "required": ["content"],
+                        "additionalProperties": False,
+                    },
+                },
+            ]
+            self.tools += memory_tools
+        else:
+            self.brain_file = None
+
     def debug_print(self, *args):
         if self.debug:
             pp(*args)
@@ -57,14 +96,25 @@ class Agent:
             if self.print_steps:
                 print(f"{name}({args})")
 
-            if hasattr(self.computer, name):  # if function exists on computer, call it
+            # handle memory functions
+            if name == "fetch_memory":
+                result = self.fetch_memory()
+            elif name == "write_memory":
+                result = self.write_memory(**args)
+            # if function exists on computer, call it
+            elif hasattr(self.computer, name):
                 method = getattr(self.computer, name)
                 method(**args)
+                result = "success"
+            else:
+                # unknown function
+                result = None
+
             return [
                 {
                     "type": "function_call_output",
                     "call_id": item["call_id"],
-                    "output": "success",  # hard-coded output for demo
+                    "output": result,
                 }
             ]
 
@@ -109,6 +159,29 @@ class Agent:
 
             return [call_output]
         return []
+    
+    def fetch_memory(self) -> str:
+        """Read and return all memory from the brain file."""
+        if not self.brain_file:
+            return ""
+        try:
+            with open(self.brain_file, "r", encoding="utf-8") as f:
+                return f.read()
+        except FileNotFoundError:
+            return ""
+        except Exception:
+            return ""
+
+    def write_memory(self, content: str) -> str:
+        """Append content to the brain file memory."""
+        if not self.brain_file:
+            return ""
+        try:
+            with open(self.brain_file, "a", encoding="utf-8") as f:
+                f.write(content)
+        except Exception:
+            pass
+        return content
 
     def run_full_turn(
         self, input_items, print_steps=True, debug=False, show_images=False

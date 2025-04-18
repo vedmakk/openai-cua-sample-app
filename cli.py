@@ -53,6 +53,12 @@ def main():
         help="Start the browsing session with a specific URL (only for browser environments).",
         default="https://bing.com",
     )
+    parser.add_argument(
+        "--brain-file",
+        type=str,
+        help="Path to the brain/memory file for the agent.",
+        default=None,
+    )
     args = parser.parse_args()
 
     computer_mapping = {
@@ -69,6 +75,7 @@ def main():
         agent = Agent(
             computer=computer,
             acknowledge_safety_check_callback=acknowledge_safety_check_callback,
+            brain_file=args.brain_file,
         )
         items = []
 
@@ -87,8 +94,17 @@ def main():
                 print(f"An error occurred: {e}")
                 break
             items.append({"role": "user", "content": user_input})
+            # build context with memory if provided
+            if args.brain_file:
+                memory = agent.fetch_memory()
+                if memory.strip():
+                    context = [{"role": "system", "content": f"Your memory (things you have learned and remembered in past runs):\n{memory}"}] + items
+                else:
+                    context = items
+            else:
+                context = items
             output_items = agent.run_full_turn(
-                items,
+                context,
                 print_steps=True,
                 show_images=args.show,
                 debug=args.debug,
