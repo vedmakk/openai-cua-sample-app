@@ -1,4 +1,12 @@
-# Computer Using Agent Sample App
+# a11y-agent
+
+This is a fork of the [Computer Using Agent Sample App](https://github.com/openai/openai-cua-sample-app) with the goal of making an a11y agent proof of concept.
+
+We've added a few features to the original sample app:
+
+- Voice input and output
+- Memory file support
+- Customized agent for a11y use case
 
 Get started building a [Computer Using Agent (CUA)](https://platform.openai.com/docs/guides/tools-computer-use) with the OpenAI API.
 
@@ -15,12 +23,24 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
+### Environment Variables
+
+Create a `.env` file in the root of the project (copy from `.env.example`) and add your OpenAI API key.
+
+```shell
+OPENAI_API_KEY=your_api_key
+```
+
 Run CLI to let CUA use a local browser window, using [playwright](https://playwright.dev/). (Stop with CTRL+C)
 
 ```shell
 python cli.py --computer local-playwright
 
+# Run with memory file (brain)
 python cli.py --computer local-playwright --start-url https://duckduckgo.com --memory-file ./memory-files/memory.txt
+
+# Run with voice input and output (ears and mouth)
+python cli.py --computer local-playwright --start-url https://duckduckgo.com --memory-file ./memory-files/memory.txt --voice
 ```
 
 > [!NOTE]  
