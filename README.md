@@ -21,6 +21,8 @@ Run CLI to let CUA use a local browser window, using [playwright](https://playwr
 python cli.py --computer local-playwright
 
 python cli.py --computer local-playwright --start-url https://duckduckgo.com --memory-file ./memory-files/memory.txt
+
+python cli.py --computer local-playwright --start-url https://duckduckgo.com --memory-file ./memory-files/memory.txt --voice
 ```
 
 > [!NOTE]  

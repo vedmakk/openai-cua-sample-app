@@ -11,6 +11,8 @@ from utils import (
 import json
 from typing import Callable
 
+# type: ignore
+# NOTE: Added step_handler to customize how messages and steps are surfaced (e.g. speaking them aloud).
 class Agent:
     """
     A sample agent class that can be used to interact with a computer.
@@ -25,6 +27,7 @@ class Agent:
         tools: list[dict] = [],
         acknowledge_safety_check_callback: Callable = lambda: False,
         memory_providers: list[MemoryProvider] = None,
+        step_handler: Callable[[str], None] | None = None,
     ):
         self.model = model
         self.computer = computer
@@ -33,6 +36,8 @@ class Agent:
         self.debug = False
         self.show_images = False
         self.acknowledge_safety_check_callback = acknowledge_safety_check_callback
+        # handler for steps (defaults to built-in print)
+        self.step_handler = step_handler or print
         # add computer-preview tool if computer is provided
         if computer:
             dimensions = computer.get_dimensions()
@@ -57,12 +62,12 @@ class Agent:
         """Handle each item; may cause a computer action + screenshot."""
         if item["type"] == "message":
             if self.print_steps:
-                print(item["content"][0]["text"])
+                self.step_handler(item["content"][0]["text"])
 
         if item["type"] == "function_call":
             name, args = item["name"], json.loads(item["arguments"])
             if self.print_steps:
-                print(f"{name}({args})")
+                self.step_handler(f"{name}({args})")
             # route to memory providers first
             handled = False
             for provider in self.memory_providers:
@@ -92,7 +97,7 @@ class Agent:
             action_type = action["type"]
             action_args = {k: v for k, v in action.items() if k != "type"}
             if self.print_steps:
-                print(f"{action_type}({action_args})")
+                self.step_handler(f"{action_type}({action_args})")
 
             method = getattr(self.computer, action_type)
             method(**action_args)

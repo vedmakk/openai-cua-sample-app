@@ -51,6 +51,11 @@ def main():
         help="Path to the memory file for the file memory provider.",
         default=None,
     )
+    parser.add_argument(
+        "--voice",
+        action="store_true",
+        help="Enable voice input and output (requires microphone and speakers).",
+    )
     args = parser.parse_args()
     ComputerClass = computers_config[args.computer]
     
@@ -59,27 +64,61 @@ def main():
     if args.memory_file:
         memory_providers.append(FileMemoryProvider(args.memory_file))
 
+    # VoiceIO is imported lazily to avoid requiring additional dependencies when --voice is not used
+    if args.voice:
+        from voice_io import VoiceIO  # noqa: E402
+
     with ComputerClass() as computer:
+        # set up step handler (prints always, optionally speaks)
+        if args.voice:
+            voice_io = VoiceIO()
+
+            def _step_handler(msg: str):
+                print(msg)
+                try:
+                    voice_io.speak(msg)
+                except Exception as e:
+                    print(f"[VoiceIO] Failed to speak step: {e}")
+
+            step_handler = _step_handler
+        else:
+            step_handler = print
+
         agent = Agent(
             computer=computer,
             acknowledge_safety_check_callback=acknowledge_safety_check_callback,
             memory_providers=memory_providers,
+            step_handler=step_handler,
         )
-        items = []
 
+        items: list[dict] = []
+
+        # open browser at start url if applicable
         if args.computer in ["browserbase", "local-playwright"]:
             if not args.start_url.startswith("http"):
                 args.start_url = "https://" + args.start_url
             agent.computer.goto(args.start_url)
+
         while True:
             try:
-                user_input = args.input or input("> ")
-                if user_input == "exit":
+                if args.voice:
+                    # record voice and transcribe
+                    print("Press Enter to start recording. Press Enter again to stop.")
+                    input()  # wait for enter
+                    print("Recording... Speak now.")
+                    wav_path = voice_io.record_audio(duration=5)  # record 5 seconds
+                    user_input = voice_io.speech_to_text(wav_path)
+                    print(f"You said: {user_input}")
+                else:
+                    user_input = args.input or input("> ")
+                if user_input.strip().lower() == "exit":
                     break
             except EOFError as e:
                 print(f"An error occurred: {e}")
                 break
+
             items.append({"role": "user", "content": user_input})
+
             # run with full history; Agent will inject memory providers automatically
             output_items = agent.run_full_turn(
                 items,
@@ -87,7 +126,19 @@ def main():
                 show_images=args.show,
                 debug=args.debug,
             )
+
             items += output_items
+
+            # speak assistant's final response if voice enabled
+            if args.voice:
+                assistant_msgs = [it["content"] for it in output_items if it.get("role") == "assistant"]
+                if assistant_msgs:
+                    try:
+                        voice_io.speak(assistant_msgs[-1])
+                    except Exception as e:
+                        print(f"[VoiceIO] Failed to speak assistant response: {e}")
+
+            # reset --input after first loop
             args.input = None
 
 
