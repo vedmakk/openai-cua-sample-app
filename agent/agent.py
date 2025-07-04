@@ -141,7 +141,27 @@ class Agent:
             try:
                 memory = provider.handle_call("fetch_memory", {})
                 if isinstance(memory, str) and memory.strip():
-                    base_items.append({"role": "system", "content": f"Memory:\n{memory}"})
+                    base_items.append({
+                        "role": "system",
+                        "content":
+                            f"""
+                            You are an accessibility assistant and help the user browse the web and get
+                            things done. You act as a Screen Reader and help the user navigate the web.
+
+                            The user has opened a browser which you can access and make actions through your tools.
+                            The user will ask you to do things, and you will use your tools to do them.
+
+                            You assume that the user can't see the screen, so despite executing the actions to
+                            fulfill the user's intent, you should describe what you did and what is going on the 
+                            screen, in a way that is accessible to the user. Remember to be very concise, brief and to
+                            to the point.
+
+                            Also you have a memory of important information about the user. You can update this
+                            memory to store new information you learn about the user for later reference.
+
+                            Memory:\n{memory}
+                            """
+                    })
             except Exception:
                 continue
         base_items += input_items
