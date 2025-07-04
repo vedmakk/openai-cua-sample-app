@@ -20,8 +20,10 @@ Run CLI to let CUA use a local browser window, using [playwright](https://playwr
 ```shell
 python cli.py --computer local-playwright
 
+# Run with memory file (brain)
 python cli.py --computer local-playwright --start-url https://duckduckgo.com --memory-file ./memory-files/memory.txt
 
+# Run with voice input and output (ears and mouth)
 python cli.py --computer local-playwright --start-url https://duckduckgo.com --memory-file ./memory-files/memory.txt --voice
 ```
 
