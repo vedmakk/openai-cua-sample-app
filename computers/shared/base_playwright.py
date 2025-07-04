@@ -49,7 +49,7 @@ class BasePlaywrightComputer:
         return "browser"
 
     def get_dimensions(self):
-        return (1024, 768)
+        return (1280, 1024)
 
     def __init__(self):
         self._playwright = None
