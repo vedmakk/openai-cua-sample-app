@@ -57,6 +57,7 @@ class VoiceIO:
         model_tts: str = "tts-1",
         voice: str = "alloy",
         sample_rate: int = DEFAULT_SAMPLE_RATE,
+        verbose: bool = False,
     ) -> None:
         if openai is None:
             raise ImportError(
@@ -72,7 +73,7 @@ class VoiceIO:
         self.model_transcription = model_transcription
         self.model_tts = model_tts
         self.voice_name = voice
-
+        self.verbose = verbose
         # Client is created lazily because `openai.OpenAI()` will read env vars
         # and may raise if missing.
         self._client: Optional[openai.OpenAI] = None
@@ -95,7 +96,8 @@ class VoiceIO:
         if sd is None:
             raise RuntimeError("sounddevice is not available – cannot record audio")
 
-        print(f"[VoiceIO] Recording for {duration} seconds…")
+        if self.verbose:
+            print(f"[VoiceIO] Recording for {duration} seconds…")
         recording = sd.rec(int(duration * self.sample_rate), samplerate=self.sample_rate, channels=1, dtype="int16")
         sd.wait()  # Wait until recording is finished
 
@@ -105,20 +107,23 @@ class VoiceIO:
             os.close(fd)  # we'll write with soundfile
 
         sf.write(filename, recording, self.sample_rate)
-        print(f"[VoiceIO] Saved recording to {filename}")
+        if self.verbose:
+            print(f"[VoiceIO] Saved recording to {filename}")
         return filename
 
     # ---------- Speech ↔ Text ----------
 
     def speech_to_text(self, wav_path: str) -> str:
-        print("[VoiceIO] Transcribing audio with OpenAI Whisper…")
+        if self.verbose:
+            print("[VoiceIO] Transcribing audio with OpenAI Whisper…")
         with open(wav_path, "rb") as f:
             transcription = self.client.audio.transcriptions.create(
                 model=self.model_transcription,
                 file=f,
             )
         text = transcription.text.strip()
-        print(f"[VoiceIO] Transcription result: {text}")
+        if self.verbose:
+            print(f"[VoiceIO] Transcription result: {text}")
         return text
 
     def _text_to_speech_mp3_bytes(self, text: str) -> bytes:
@@ -134,7 +139,8 @@ class VoiceIO:
 
         Returns MP3 file path.
         """
-        print(f"[VoiceIO] Generating speech for: {text[:60]}…")
+        if self.verbose:
+            print(f"[VoiceIO] Generating speech for: {text[:60]}…")
         audio_bytes = self._text_to_speech_mp3_bytes(text)
         fd, filename = tempfile.mkstemp(suffix=".mp3", prefix="voiceio_tts_")
         with os.fdopen(fd, "wb") as f:
@@ -149,14 +155,16 @@ class VoiceIO:
         Primary method is the `playsound` package. If that fails (e.g. missing
         `AppKit` on macOS) we fall back to a platform-specific system command.
         """
-        print(f"[VoiceIO] Playing: {file_path}")
+        if self.verbose:
+            print(f"[VoiceIO] Playing: {file_path}")
         try:
             if playsound is None:
                 raise RuntimeError("playsound not available")
             playsound(file_path)
         except Exception as e:
             # Fallback strategies per platform
-            print(f"[VoiceIO] playsound failed: {e}. Falling back to system player…")
+            if self.verbose:
+                print(f"[VoiceIO] playsound failed: {e}. Falling back to system player…")
             if sys.platform == "darwin":
                 subprocess.run(["afplay", file_path], check=False)
             elif sys.platform.startswith("linux"):
