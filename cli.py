@@ -103,10 +103,13 @@ def main():
             try:
                 if args.voice:
                     # record voice and transcribe
-                    print("Press Enter to start recording. Press Enter again to stop.")
+                    voice_io.play_beep()
+                    step_handler("Press Enter to start recording…")
                     input()  # wait for enter
                     print("Recording... Speak now.")
+                    voice_io.play_beep()
                     wav_path = voice_io.record_audio(duration=5)  # record 5 seconds
+                    voice_io.play_beep()
                     user_input = voice_io.speech_to_text(wav_path)
                     print(f"You said: {user_input}")
                 else:
@@ -128,15 +131,6 @@ def main():
             )
 
             items += output_items
-
-            # speak assistant's final response if voice enabled
-            if args.voice:
-                assistant_msgs = [it["content"] for it in output_items if it.get("role") == "assistant"]
-                if assistant_msgs:
-                    try:
-                        voice_io.speak(assistant_msgs[-1])
-                    except Exception as e:
-                        print(f"[VoiceIO] Failed to speak assistant response: {e}")
 
             # reset --input after first loop
             args.input = None

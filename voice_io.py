@@ -207,3 +207,6 @@ class VoiceIO:
                 os.remove(mp3_path)
             except FileNotFoundError:
                 pass 
+
+    def play_beep(self):
+        self.play_audio("beep.mp3")
